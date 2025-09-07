@@ -5,15 +5,29 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductDocument } from './schema/product.schema';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { CategoriesService } from '../categories/categories.service';
+import { BrandsService } from '../brands/brands.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
+    private readonly categoriesService: CategoriesService,
+    private readonly brandsService: BrandsService,
   ) {}
 
   async create(dto: CreateProductDto): Promise<Product> {
+    const category = await this.categoriesService.findOne(dto.categoryId);
+    if (!category)
+      throw new NotFoundException(
+        `Category with ID "${dto.categoryId}" not found`,
+      );
+
+    const brand = await this.brandsService.findOne(dto.brandId);
+    if (!brand)
+      throw new NotFoundException(`Brand with ID "${dto.brandId}" not found`);
+
     const product = new this.productModel(dto);
     return product.save();
   }
@@ -58,9 +72,24 @@ export class ProductsService {
   }
 
   async update(id: string, dto: UpdateProductDto): Promise<Product> {
+    if (dto.categoryId) {
+      const category = await this.categoriesService.findOne(dto.categoryId);
+      if (!category)
+        throw new NotFoundException(
+          `Category with ID "${dto.categoryId}" not found`,
+        );
+    }
+
+    if (dto.brandId) {
+      const brand = await this.brandsService.findOne(dto.brandId);
+      if (!brand)
+        throw new NotFoundException(`Brand with ID "${dto.brandId}" not found`);
+    }
+
     const updated = await this.productModel
       .findByIdAndUpdate(id, dto, { new: true })
       .exec();
+      
     if (!updated)
       throw new NotFoundException(`Product with ID "${id}" not found`);
     return updated;
