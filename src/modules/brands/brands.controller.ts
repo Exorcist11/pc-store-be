@@ -39,7 +39,7 @@ export class BrandsController {
   @ApiQuery({ name: 'sort', required: false, example: 'name' })
   @ApiQuery({ name: 'order', required: false, example: 'asc' })
   async findAll(@Query() query: PaginationQueryDto) {
-    return this.brandsService.findAll();
+    return this.brandsService.findAll(query);
   }
 
   @Get(':id')

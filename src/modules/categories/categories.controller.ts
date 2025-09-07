@@ -41,8 +41,7 @@ export class CategoriesController {
   @ApiQuery({ name: 'sort', required: false, example: 'name' })
   @ApiQuery({ name: 'order', required: false, example: 'asc' })
   async findAll(@Query() query: PaginationQueryDto) {
-    // Bạn có thể triển khai filtering, sorting và pagination ở service
-    return this.categoriesService.findAll();
+    return this.categoriesService.findAll(query);
   }
 
   @Get(':id')

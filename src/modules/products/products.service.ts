@@ -1,26 +1,75 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, SortOrder } from 'mongoose';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { Product, ProductDocument } from './schema/product.schema';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @Injectable()
 export class ProductsService {
-  create(createProductDto: CreateProductDto) {
-    return 'This action adds a new product';
+  constructor(
+    @InjectModel(Product.name)
+    private readonly productModel: Model<ProductDocument>,
+  ) {}
+
+  async create(dto: CreateProductDto): Promise<Product> {
+    const product = new this.productModel(dto);
+    return product.save();
   }
 
-  findAll() {
-    return `This action returns all products`;
+  async findAll(query: PaginationQueryDto) {
+    const { keyword, index, limit, sort, order } = query;
+
+    const filter: any = {};
+    if (keyword) {
+      filter.$or = [{ name: { $regex: keyword, $options: 'i' } }];
+    }
+    const skip = (index - 1) * limit;
+    const sortOption: Record<string, SortOrder> = {};
+    if (sort) {
+      sortOption[sort] = order === 'desc' ? -1 : 1;
+    }
+
+    const [data, total] = await Promise.all([
+      this.productModel
+        .find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort(sortOption)
+        .exec(),
+      this.productModel.countDocuments(filter),
+    ]);
+
+    return {
+      items: data,
+      total,
+      index,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  async findOne(id: string): Promise<Product> {
+    const product = await this.productModel.findById(id).exec();
+    if (!product)
+      throw new NotFoundException(`Product with ID "${id}" not found`);
+    return product;
   }
 
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  async update(id: string, dto: UpdateProductDto): Promise<Product> {
+    const updated = await this.productModel
+      .findByIdAndUpdate(id, dto, { new: true })
+      .exec();
+    if (!updated)
+      throw new NotFoundException(`Product with ID "${id}" not found`);
+    return updated;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  async remove(id: string): Promise<Product> {
+    const deleted = await this.productModel.findByIdAndDelete(id).exec();
+    if (!deleted)
+      throw new NotFoundException(`Product with ID "${id}" not found`);
+    return deleted;
   }
 }

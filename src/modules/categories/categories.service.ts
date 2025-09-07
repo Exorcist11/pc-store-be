@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, SortOrder } from 'mongoose';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category, CategoryDocument } from './schema/category.schema';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @Injectable()
 export class CategoriesService {
@@ -17,8 +18,38 @@ export class CategoriesService {
     return category.save();
   }
 
-  async findAll(): Promise<Category[]> {
-    return this.categoryModel.find().exec();
+  async findAll(query: PaginationQueryDto) {
+    const { keyword, index, limit, sort, order } = query;
+
+    const filter: any = {};
+
+    if (keyword) {
+      filter.$or = [{ name: { $regex: keyword, $options: 'i' } }];
+    }
+
+    const skip = (index - 1) * limit;
+    const sortOption: Record<string, SortOrder> = {};
+    if (sort) {
+      sortOption[sort] = order === 'desc' ? -1 : 1;
+    }
+
+    const [data, total] = await Promise.all([
+      this.categoryModel
+        .find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort(sortOption)
+        .exec(),
+      this.categoryModel.countDocuments(filter),
+    ]);
+
+    return {
+      items: data,
+      total,
+      index,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: string): Promise<Category> {
