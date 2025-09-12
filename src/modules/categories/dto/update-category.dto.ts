@@ -1,26 +1,41 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { CreateCategoryDto } from './create-category.dto';
+import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { Types } from 'mongoose';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {
-  @ApiPropertyOptional({ description: 'Optional new category name' })
+export class UpdateCategoryDto {
+  @ApiProperty({
+    description: 'Tên của danh mục',
+    example: 'Điện tử',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Optional new slug' })
-  slug?: string;
-
-  @ApiPropertyOptional({ description: 'Optional new description' })
+  @ApiProperty({
+    description: 'Mô tả của danh mục',
+    example: 'Danh mục các sản phẩm điện tử',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
   description?: string;
 
-  @ApiPropertyOptional({ description: 'Optional new parent category ID' })
-  parentId?: string;
+  @ApiProperty({
+    description: 'ID của danh mục cha',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  @IsOptional()
+  parent?: Types.ObjectId;
 
-  @ApiPropertyOptional({ description: 'Optional new level' })
+  @ApiProperty({
+    description: 'Cấp độ của danh mục (1, 2 hoặc 3)',
+    example: 1,
+    enum: [1, 2, 3],
+    required: false,
+  })
+  @IsEnum([1, 2, 3])
+  @IsOptional()
   level?: number;
-
-  @ApiPropertyOptional({ description: 'Optional new active status' })
-  isActive?: boolean;
-
-  @ApiPropertyOptional({ description: 'Optional new sort order' })
-  sortOrder?: number;
 }
