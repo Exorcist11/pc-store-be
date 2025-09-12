@@ -36,8 +36,17 @@ export class BrandsController {
   @ApiQuery({ name: 'keyword', required: false })
   @ApiQuery({ name: 'index', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiQuery({ name: 'sort', required: false, example: 'name' })
-  @ApiQuery({ name: 'order', required: false, example: 'asc' })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    example: 'createdAt',
+  })
+  @ApiQuery({
+    name: 'order',
+    required: false,
+    enum: ['asc', 'desc'],
+    example: 'asc',
+  })
   async findAll(@Query() query: PaginationQueryDto) {
     return this.brandsService.findAll(query);
   }

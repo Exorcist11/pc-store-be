@@ -20,6 +20,9 @@ export class Category {
 
   @Prop({ required: true, enum: [1, 2, 3] })
   level: number;
+
+  @Prop({ default: true })
+  isActive: boolean;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

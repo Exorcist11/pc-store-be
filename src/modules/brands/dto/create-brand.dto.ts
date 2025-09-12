@@ -7,11 +7,6 @@ export class CreateBrandDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: 'rog' })
-  @IsString()
-  @IsNotEmpty()
-  slug: string;
-
   @ApiProperty({
     example: 'https://example.com/uploads/rog-logo.png',
     required: false,

@@ -48,31 +48,25 @@ export class CategoriesController {
   @ApiQuery({
     name: 'keyword',
     required: false,
-    description: 'Từ khóa tìm kiếm theo tên hoặc slug',
-    example: 'Điện tử',
   })
   @ApiQuery({
     name: 'index',
-    required: true,
-    description: 'Trang hiện tại',
+    required: false,
     example: 1,
   })
   @ApiQuery({
     name: 'limit',
-    required: true,
-    description: 'Số lượng bản ghi trên mỗi trang',
+    required: false,
     example: 10,
   })
   @ApiQuery({
     name: 'sort',
     required: false,
-    description: 'Trường để sắp xếp',
-    example: 'name',
+    example: 'createdAt',
   })
   @ApiQuery({
     name: 'order',
     required: false,
-    description: 'Thứ tự sắp xếp',
     enum: ['asc', 'desc'],
     example: 'asc',
   })

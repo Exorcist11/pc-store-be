@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsEnum } from 'class-validator';
 import { Types } from 'mongoose';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateCategoryDto {
   @ApiProperty({
@@ -38,4 +38,7 @@ export class UpdateCategoryDto {
   @IsEnum([1, 2, 3])
   @IsOptional()
   level?: number;
+
+  @ApiPropertyOptional({ description: 'Trạng thái hoạt động (optional)' })
+  isActive?: boolean;
 }

@@ -24,4 +24,8 @@ export class CreateCategoryDto {
   })
   @IsOptional()
   parent?: Types.ObjectId;
+
+  @ApiProperty({ example: true, default: true, required: false })
+  @IsOptional()
+  isActive?: boolean;
 }
