@@ -18,15 +18,15 @@ export class ProductsService {
   ) {}
 
   async create(dto: CreateProductDto): Promise<Product> {
-    const category = await this.categoriesService.findOne(dto.categoryId);
+    const category = await this.categoriesService.findOne(dto.category);
     if (!category)
       throw new NotFoundException(
-        `Category with ID "${dto.categoryId}" not found`,
+        `Category with ID "${dto.category}" not found`,
       );
 
-    const brand = await this.brandsService.findOne(dto.brandId);
+    const brand = await this.brandsService.findOne(dto.brand);
     if (!brand)
-      throw new NotFoundException(`Brand with ID "${dto.brandId}" not found`);
+      throw new NotFoundException(`Brand with ID "${dto.brand}" not found`);
 
     const product = new this.productModel(dto);
     return product.save();
@@ -72,24 +72,24 @@ export class ProductsService {
   }
 
   async update(id: string, dto: UpdateProductDto): Promise<Product> {
-    if (dto.categoryId) {
-      const category = await this.categoriesService.findOne(dto.categoryId);
+    if (dto.category) {
+      const category = await this.categoriesService.findOne(dto.category);
       if (!category)
         throw new NotFoundException(
-          `Category with ID "${dto.categoryId}" not found`,
+          `Category with ID "${dto.category}" not found`,
         );
     }
 
-    if (dto.brandId) {
-      const brand = await this.brandsService.findOne(dto.brandId);
+    if (dto.brand) {
+      const brand = await this.brandsService.findOne(dto.brand);
       if (!brand)
-        throw new NotFoundException(`Brand with ID "${dto.brandId}" not found`);
+        throw new NotFoundException(`Brand with ID "${dto.brand}" not found`);
     }
 
     const updated = await this.productModel
       .findByIdAndUpdate(id, dto, { new: true })
       .exec();
-      
+
     if (!updated)
       throw new NotFoundException(`Product with ID "${id}" not found`);
     return updated;
