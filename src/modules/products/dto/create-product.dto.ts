@@ -5,8 +5,10 @@ import {
   IsNotEmpty,
   IsOptional,
   IsNumber,
+  IsBoolean,
   IsArray,
   ValidateNested,
+  IsMongoId,
   IsEnum,
 } from 'class-validator';
 class VariantDto {
@@ -44,10 +46,12 @@ export class CreateProductDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ description: 'Brand' })
+  @ApiProperty({ description: 'Brand ID' })
+  @IsMongoId()
   brand: string;
 
-  @ApiProperty({ description: 'Category' })
+  @ApiProperty({ description: 'Category ID' })
+  @IsMongoId()
   category: string;
 
   @ApiProperty({
@@ -82,4 +86,8 @@ export class CreateProductDto {
   @IsNumber()
   @IsOptional()
   discount?: number;
+
+  @ApiProperty({ example: true, default: true, required: false })
+  @IsOptional()
+  isActive?: boolean;
 }

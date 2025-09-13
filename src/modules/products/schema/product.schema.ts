@@ -55,6 +55,9 @@ export class Product {
 
   @Prop({ default: 0 })
   discount: number;
+
+  @Prop({ default: true })
+  isActive: boolean;
 }
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
@@ -87,14 +90,14 @@ ProductSchema.pre<ProductDocument>('save', async function (next) {
     }
 
     // Tạo slug cho variant
-    if (!variant.slug) {
-      const attrValues = Object.values(variant.attributes).join('-');
-      let baseSlug = slugify(`${this.name}-${attrValues}`, {
+    if (!variant.slug && variant.sku) {
+      let baseSlug = slugify(variant.sku, {
         lower: true,
         strict: true,
       });
       let slug = baseSlug;
       let counter = 1;
+
       while (
         await ProductModel.findOne({
           'variants.slug': slug,
@@ -103,6 +106,7 @@ ProductSchema.pre<ProductDocument>('save', async function (next) {
       ) {
         slug = `${baseSlug}-${counter++}`;
       }
+
       variant.slug = slug;
     }
   }
