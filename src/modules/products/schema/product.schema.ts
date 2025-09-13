@@ -1,31 +1,8 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types, Model } from 'mongoose';
+import slugify from 'slugify';
 
 export type ProductDocument = Product & Document;
-
-@Schema({ _id: false })
-export class ProductDimensions {
-  @Prop()
-  length: number;
-
-  @Prop()
-  width: number;
-
-  @Prop()
-  height: number;
-}
-
-@Schema({ _id: false })
-export class ProductCompatibility {
-  @Prop({ type: [String], default: [] })
-  sockets: string[];
-
-  @Prop({ type: [String], default: [] })
-  memoryTypes: string[];
-
-  @Prop()
-  maxMemory: number;
-}
 
 @Schema({ timestamps: true })
 export class Product {
@@ -35,71 +12,100 @@ export class Product {
   @Prop({ required: true, unique: true })
   slug: string;
 
-  @Prop({ required: true, unique: true })
-  sku: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
-  categoryId: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Brand', required: true })
-  brandId: Types.ObjectId;
-
-  @Prop({
-    required: true,
-    enum: ['component', 'laptop', 'prebuilt', 'accessory'],
-  })
-  productType: string;
-
   @Prop()
   description: string;
 
-  @Prop()
-  shortDescription: string;
+  @Prop({ type: Types.ObjectId, ref: 'Brand', required: true })
+  brand: Types.ObjectId;
 
-  @Prop({ type: Object, default: {} })
-  specifications: Record<string, any>;
+  @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
+  category: Types.ObjectId;
+
+  @Prop({ required: true, enum: ['laptop', 'desktop', 'accessory'] })
+  productType: string;
+
+  @Prop({ type: [String], default: [] })
+  allowedAttributes: string[];
+
+  @Prop({
+    type: [
+      {
+        sku: { type: String, required: true, unique: true },
+        slug: { type: String, unique: true },
+        price: { type: Number, required: true },
+        stock: { type: Number, required: true, default: 0 },
+        attributes: { type: Object, required: true },
+        images: { type: [String], default: [] },
+      },
+    ],
+    required: true,
+    default: [],
+  })
+  variants: {
+    sku: string;
+    slug: string;
+    price: number;
+    stock: number;
+    attributes: Record<string, string>;
+    images: string[];
+  }[];
 
   @Prop({ type: [String], default: [] })
   images: string[];
 
-  @Prop({ required: true })
-  price: number;
-
-  @Prop()
-  comparePrice: number;
-
-  @Prop()
-  costPrice: number;
-
-  @Prop({ required: true, default: 0 })
-  stock: number;
-
-  @Prop({ default: 5 })
-  minStock: number;
-
-  @Prop()
-  weight: number;
-
-  @Prop({ type: ProductDimensions })
-  dimensions: ProductDimensions;
-
-  @Prop({ type: ProductCompatibility })
-  compatibility: ProductCompatibility;
-
-  @Prop({ default: true })
-  isActive: boolean;
-
-  @Prop({ default: false })
-  isFeatured: boolean;
-
-  @Prop({ type: [String], default: [] })
-  tags: string[];
-
-  @Prop()
-  seoTitle: string;
-
-  @Prop()
-  seoDescription: string;
+  @Prop({ default: 0 })
+  discount: number;
 }
-
 export const ProductSchema = SchemaFactory.createForClass(Product);
+
+// Middleware để tự động tạo slug và validate attributes
+ProductSchema.pre<ProductDocument>('save', async function (next) {
+  const ProductModel = this.constructor as Model<ProductDocument>;
+
+  // Tạo slug cho sản phẩm từ name
+  if (this.isModified('name') || !this.slug) {
+    let baseSlug = slugify(this.name, { lower: true, strict: true });
+    let slug = baseSlug;
+    let counter = 1;
+    while (await ProductModel.findOne({ slug, _id: { $ne: this._id } })) {
+      slug = `${baseSlug}-${counter++}`;
+    }
+    this.slug = slug;
+  }
+
+  // Tạo slug cho variants và validate attributes
+  for (const variant of this.variants) {
+    // Validate attributes
+    if (this.allowedAttributes.length > 0) {
+      for (const key of Object.keys(variant.attributes)) {
+        if (!this.allowedAttributes.includes(key)) {
+          throw new Error(
+            `Thuộc tính '${key}' không được phép cho sản phẩm này`,
+          );
+        }
+      }
+    }
+
+    // Tạo slug cho variant
+    if (!variant.slug) {
+      const attrValues = Object.values(variant.attributes).join('-');
+      let baseSlug = slugify(`${this.name}-${attrValues}`, {
+        lower: true,
+        strict: true,
+      });
+      let slug = baseSlug;
+      let counter = 1;
+      while (
+        await ProductModel.findOne({
+          'variants.slug': slug,
+          'variants.sku': { $ne: variant.sku },
+        })
+      ) {
+        slug = `${baseSlug}-${counter++}`;
+      }
+      variant.slug = slug;
+    }
+  }
+
+  next();
+});

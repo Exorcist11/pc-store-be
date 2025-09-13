@@ -5,10 +5,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsNumber,
-  IsBoolean,
   IsArray,
   ValidateNested,
-  IsMongoId,
   IsEnum,
 } from 'class-validator';
 class VariantDto {
@@ -46,12 +44,10 @@ export class CreateProductDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ description: 'Brand ID' })
-  @IsMongoId()
+  @ApiProperty({ description: 'Brand' })
   brand: string;
 
-  @ApiProperty({ description: 'Category ID' })
-  @IsMongoId()
+  @ApiProperty({ description: 'Category' })
   category: string;
 
   @ApiProperty({
