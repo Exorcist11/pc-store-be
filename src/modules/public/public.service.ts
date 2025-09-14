@@ -25,7 +25,7 @@ export class PublicService {
   async findFeaturesProduct(query: PaginationQueryDto) {
     const { keyword, index = 1, limit = 10, sort, order } = query;
 
-    const [data, total] = await Promise.all([
+    const [data] = await Promise.all([
       this.productService.findAll({
         keyword,
         index,
@@ -36,13 +36,7 @@ export class PublicService {
       this.productService.count({ keyword }),
     ]);
 
-    return {
-      items: data,
-      total,
-      index,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return data;
   }
 
   async findCategory(query: PaginationQueryDto) {
@@ -58,10 +52,6 @@ export class PublicService {
       }),
     ]);
 
-    return {
-      items: data,
-      index,
-      limit,
-    };
+    return data;
   }
 }
