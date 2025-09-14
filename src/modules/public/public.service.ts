@@ -25,7 +25,7 @@ export class PublicService {
   async findFeaturesProduct(query: PaginationQueryDto) {
     const { keyword, index = 1, limit = 10, sort, order } = query;
 
-    const [data] = await Promise.all([
+    const [data, total] = await Promise.all([
       this.productService.findAll({
         keyword,
         index,
@@ -40,18 +40,49 @@ export class PublicService {
   }
 
   async findCategory(query: PaginationQueryDto) {
-    const { keyword, index = 1, limit = 100, sort, order } = query;
+    const {
+      keyword,
+      index = 1,
+      limit = 100,
+      sort = 'createdAt',
+      order = 'desc',
+    } = query;
 
-    const [data] = await Promise.all([
-      this.categoriesService.findAll({
-        keyword,
-        index,
-        limit,
-        sort,
-        order,
-      }),
+    // Lấy danh sách categories
+    const categories = await this.categoriesService.findAll({
+      keyword,
+      index,
+      limit,
+      sort,
+      order,
+    });
+
+
+    // Đếm số lượng sản phẩm theo category (1 query duy nhất)
+    const counts = await this.productService['productModel'].aggregate([
+      {
+        $group: {
+          _id: '$category',
+          productCount: { $sum: 1 },
+        },
+      },
     ]);
 
-    return data;
+    // Convert counts thành object để tra nhanh
+    const countsMap = counts.reduce(
+      (acc, cur) => {
+        acc[cur._id.toString()] = cur.productCount;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    // Gắn productCount vào từng category
+    const result = categories?.items.map((cat) => ({
+      ...cat,
+      productCount: countsMap[cat._id.toString()] || 0,
+    }));
+
+    return result;
   }
 }

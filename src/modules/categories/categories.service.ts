@@ -59,7 +59,7 @@ export class CategoriesService {
         .skip(skip)
         .limit(limit)
         .sort(sortOption)
-        .exec(),
+        .lean(),
       this.categoryModel.countDocuments(filter),
     ]);
 
