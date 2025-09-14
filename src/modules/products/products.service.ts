@@ -64,10 +64,26 @@ export class ProductsService {
     };
   }
 
+  async count(filter: { keyword?: string }) {
+    const query: any = {};
+    if (filter.keyword) {
+      query.name = { $regex: filter.keyword, $options: 'i' };
+    }
+    return this.productModel.countDocuments(query).exec();
+  }
+
   async findOne(id: string): Promise<Product> {
     const product = await this.productModel.findById(id).exec();
     if (!product)
       throw new NotFoundException(`Product with ID "${id}" not found`);
+    return product;
+  }
+
+  async findBySlug(slug: string): Promise<Product> {
+    const product = await this.productModel.findOne({ slug }).exec();
+    if (!product) {
+      throw new NotFoundException(`Product with slug "${slug}" not found`);
+    }
     return product;
   }
 

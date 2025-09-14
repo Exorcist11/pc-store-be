@@ -14,6 +14,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { CartsModule } from './modules/carts/carts.module';
 import { CouponModule } from './modules/coupon/coupon.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { PublicModule } from './modules/public/public.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SettingsModule } from './modules/settings/settings.module';
     CartsModule,
     CouponModule,
     SettingsModule,
+    PublicModule,
   ],
   controllers: [AppController],
   providers: [AppService],
