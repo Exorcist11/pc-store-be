@@ -80,7 +80,11 @@ export class ProductsService {
   }
 
   async findBySlug(slug: string): Promise<Product> {
-    const product = await this.productModel.findOne({ slug }).exec();
+    const product = await this.productModel
+      .findOne({ slug })
+      .populate('brand', 'name')
+      .populate('category', 'name')
+      .exec();
     if (!product) {
       throw new NotFoundException(`Product with slug "${slug}" not found`);
     }
