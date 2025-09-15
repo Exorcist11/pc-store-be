@@ -80,6 +80,14 @@ export class CategoriesService {
     return category;
   }
 
+  async findBySlug(slug: string): Promise<CategoryDocument> {
+    const category = await this.categoryModel.findOne({ slug }).exec();
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${slug} not found`);
+    }
+    return category;
+  }
+
   async update(
     id: string,
     updateCategoryDto: UpdateCategoryDto,

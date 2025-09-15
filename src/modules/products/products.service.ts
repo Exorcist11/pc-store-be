@@ -79,6 +79,42 @@ export class ProductsService {
     return product;
   }
 
+  async findByCategorySlug(slug: string, query: PaginationQueryDto) {
+    const { keyword, index = 1, limit = 10, sort, order } = query;
+
+    const category = await this.categoriesService.findBySlug(slug);
+
+    if (!category) {
+      throw new NotFoundException(`Category với slug "${slug}" không tồn tại`);
+    }
+
+    const skip = (index - 1) * limit;
+    const sortOption: Record<string, SortOrder> = {};
+    if (sort) {
+      sortOption[sort] = order === 'desc' ? -1 : 1;
+    }
+
+    const [data, total] = await Promise.all([
+      this.productModel
+        .find({ category: category._id.toString() })
+        .populate('brand', 'name')
+        .populate('category', 'name')
+        .skip(skip)
+        .limit(limit)
+        .sort(sortOption)
+        .exec(),
+      this.productModel.countDocuments({ category: category._id.toString() }),
+    ]);
+
+    return {
+      items: data,
+      total,
+      index,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findBySlug(slug: string): Promise<Product> {
     const product = await this.productModel
       .findOne({ slug })

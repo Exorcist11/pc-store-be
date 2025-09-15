@@ -39,6 +39,10 @@ export class PublicService {
     return data;
   }
 
+  async findProductByCategorySlug(slug: string, query: PaginationQueryDto) {
+    return this.productService.findByCategorySlug(slug, query);
+  }
+
   async findCategory(query: PaginationQueryDto) {
     const {
       keyword,
@@ -56,7 +60,6 @@ export class PublicService {
       sort,
       order,
     });
-
 
     // Đếm số lượng sản phẩm theo category (1 query duy nhất)
     const counts = await this.productService['productModel'].aggregate([
