@@ -5,7 +5,6 @@ import { ProductsService } from '../products/products.service';
 import { CategoriesService } from '../categories/categories.service';
 import { BrandsService } from '../brands/brands.service';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
-import { SortOrder } from 'mongoose';
 
 @Injectable()
 export class PublicService {

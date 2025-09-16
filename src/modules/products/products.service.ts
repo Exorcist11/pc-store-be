@@ -18,34 +18,20 @@ export class ProductsService {
   ) {}
 
   async create(dto: CreateProductDto): Promise<Product> {
-    try {
-      console.log("📦 DTO received:", JSON.stringify(dto, null, 2));
-
-      const category = await this.categoriesService.findOne(dto.category);
-      if (!category) {
-        throw new NotFoundException(
-          `Category with ID "${dto.category}" not found`,
-        );
-      }
-
-      const brand = await this.brandsService.findOne(dto.brand);
-      if (!brand) {
-        throw new NotFoundException(`Brand with ID "${dto.brand}" not found`);
-      }
-
-      const product = new this.productModel(dto);
-      return await product.save();
-    } catch (error) {
-      // In ra log chi tiết để debug
-      console.error('❌ Error in ProductService.create:', {
-        message: error.message,
-        code: error.code,
-        keyValue: error.keyValue,
-        stack: error.stack,
-      });
-
-      throw error; // ném lại để controller xử lý
+    const category = await this.categoriesService.findOne(dto.category);
+    if (!category) {
+      throw new NotFoundException(
+        `Category with ID "${dto.category}" not found`,
+      );
     }
+
+    const brand = await this.brandsService.findOne(dto.brand);
+    if (!brand) {
+      throw new NotFoundException(`Brand with ID "${dto.brand}" not found`);
+    }
+
+    const product = new this.productModel(dto);
+    return await product.save();
   }
 
   async findAll(query: PaginationQueryDto) {

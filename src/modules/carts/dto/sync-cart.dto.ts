@@ -1,15 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
-  IsNumber,
-  IsString,
   IsMongoId,
+  IsString,
+  IsNumber,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CartItemDto {
+export class SyncCartItemDto {
   @ApiProperty({ description: 'ID sản phẩm' })
   @IsMongoId()
   product: string;
@@ -29,14 +29,17 @@ export class CartItemDto {
   priceAtAdd: number;
 }
 
-export class CreateCartDto {
+export class SyncCartDto {
   @ApiProperty({ description: 'ID của người dùng' })
   @IsMongoId()
   @IsNotEmpty()
   user: string;
 
-  @ApiProperty({ description: 'Danh sách items', type: [CartItemDto] })
-  @ValidateNested({ each: true }) 
-  @Type(() => CartItemDto)       
-  items: CartItemDto[];
+  @ApiProperty({
+    description: 'Danh sách items từ client',
+    type: [SyncCartItemDto],
+  })
+  @ValidateNested({ each: true })
+  @Type(() => SyncCartItemDto)
+  items: SyncCartItemDto[];
 }

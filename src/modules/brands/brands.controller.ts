@@ -15,16 +15,16 @@ import { ApiOperation, ApiResponse, ApiTags, ApiQuery } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Brand } from './schema/brand.schema';
 
-@ApiTags('Brands')
+@ApiTags('Brand')
 @Controller('brands')
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new brand' })
+  @ApiOperation({ summary: 'Tạo thương hiệu mới' })
   @ApiResponse({
     status: 201,
-    description: 'Brand created successfully',
+    description: 'Tạo thương hiệu thành công',
     type: Brand,
   })
   async create(@Body() dto: CreateBrandDto): Promise<Brand> {
@@ -32,35 +32,37 @@ export class BrandsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all brands' })
-  @ApiQuery({ name: 'keyword', required: false })
-  @ApiQuery({ name: 'index', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiOperation({ summary: 'Lấy danh sách thương hiệu' })
+  @ApiQuery({ name: 'keyword', required: false, description: 'Từ khóa tìm kiếm' })
+  @ApiQuery({ name: 'index', required: false, example: 1, description: 'Trang hiện tại (mặc định = 1)' })
+  @ApiQuery({ name: 'limit', required: false, example: 10, description: 'Số lượng thương hiệu mỗi trang (mặc định = 10)' })
   @ApiQuery({
     name: 'sort',
     required: false,
     example: 'createdAt',
+    description: 'Trường cần sắp xếp (vd: name, createdAt)',
   })
   @ApiQuery({
     name: 'order',
     required: false,
     enum: ['asc', 'desc'],
     example: 'asc',
+    description: 'Thứ tự sắp xếp (asc hoặc desc)',
   })
   async findAll(@Query() query: PaginationQueryDto) {
     return this.brandsService.findAll(query);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a brand by ID' })
-  @ApiResponse({ status: 200, description: 'Brand found', type: Brand })
+  @ApiOperation({ summary: 'Lấy thông tin thương hiệu theo ID' })
+  @ApiResponse({ status: 200, description: 'Tìm thấy thương hiệu', type: Brand })
   async findOne(@Param('id') id: string): Promise<Brand> {
     return this.brandsService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a brand by ID' })
-  @ApiResponse({ status: 200, description: 'Brand updated', type: Brand })
+  @ApiOperation({ summary: 'Cập nhật thương hiệu theo ID' })
+  @ApiResponse({ status: 200, description: 'Cập nhật thương hiệu thành công', type: Brand })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateBrandDto,
@@ -69,8 +71,8 @@ export class BrandsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a brand by ID' })
-  @ApiResponse({ status: 200, description: 'Brand deleted', type: Brand })
+  @ApiOperation({ summary: 'Xóa thương hiệu theo ID' })
+  @ApiResponse({ status: 200, description: 'Xóa thương hiệu thành công', type: Brand })
   async remove(@Param('id') id: string): Promise<Brand> {
     return this.brandsService.remove(id);
   }
