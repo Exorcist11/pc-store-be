@@ -9,7 +9,7 @@ export class Product {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ unique: true })
   slug: string;
 
   @Prop()
@@ -30,8 +30,8 @@ export class Product {
   @Prop({
     type: [
       {
-        sku: { type: String, required: true, unique: true },
-        slug: { type: String, unique: true },
+        sku: { type: String, required: true },
+        slug: { type: String },
         price: { type: Number, required: true },
         stock: { type: Number, required: true, default: 0 },
         attributes: { type: Object, required: true },
@@ -59,9 +59,9 @@ export class Product {
   @Prop({ default: true })
   isActive: boolean;
 }
+
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
-// Middleware để tự động tạo slug và validate attributes
 ProductSchema.pre<ProductDocument>('save', async function (next) {
   const ProductModel = this.constructor as Model<ProductDocument>;
 
@@ -70,13 +70,14 @@ ProductSchema.pre<ProductDocument>('save', async function (next) {
     let baseSlug = slugify(this.name, { lower: true, strict: true });
     let slug = baseSlug;
     let counter = 1;
+
     while (await ProductModel.findOne({ slug, _id: { $ne: this._id } })) {
       slug = `${baseSlug}-${counter++}`;
     }
     this.slug = slug;
   }
 
-  // Tạo slug cho variants và validate attributes
+  // Validate & generate slug cho từng variant
   for (const variant of this.variants) {
     // Validate attributes
     if (this.allowedAttributes.length > 0) {
@@ -89,7 +90,18 @@ ProductSchema.pre<ProductDocument>('save', async function (next) {
       }
     }
 
-    // Tạo slug cho variant
+    // ✅ Check SKU unique trong toàn bộ collection
+    if (variant.sku) {
+      const exist = await ProductModel.findOne({
+        'variants.sku': variant.sku,
+        _id: { $ne: this._id },
+      });
+      if (exist) {
+        throw new Error(`SKU '${variant.sku}' đã tồn tại`);
+      }
+    }
+
+    // ✅ Generate slug cho variant nếu chưa có
     if (!variant.slug && variant.sku) {
       let baseSlug = slugify(variant.sku, {
         lower: true,
@@ -101,7 +113,7 @@ ProductSchema.pre<ProductDocument>('save', async function (next) {
       while (
         await ProductModel.findOne({
           'variants.slug': slug,
-          'variants.sku': { $ne: variant.sku },
+          _id: { $ne: this._id },
         })
       ) {
         slug = `${baseSlug}-${counter++}`;
