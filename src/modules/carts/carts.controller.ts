@@ -11,9 +11,16 @@ import {
 import { CartsService } from './carts.service';
 import { CreateCartDto } from './dto/create-cart.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SyncCartDto } from './dto/sync-cart.dto';
+import { AddToCartDto } from './dto/add-to-cart.dto';
 
 @ApiTags('Carts')
 @Controller('carts')
@@ -25,6 +32,24 @@ export class CartsController {
   @ApiResponse({ status: 201, description: 'Giỏ hàng được tạo thành công.' })
   create(@Body() createCartDto: CreateCartDto) {
     return this.cartService.create(createCartDto);
+  }
+
+  @Post('add')
+  @ApiOperation({ summary: 'Thêm sản phẩm vào giỏ hàng' })
+  @ApiResponse({
+    status: 201,
+    description: 'Sản phẩm được thêm vào giỏ hàng thành công.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Lỗi khi thêm sản phẩm (ví dụ: không đủ hàng).',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Sản phẩm hoặc variant không tồn tại.',
+  })
+  addToCart(@Body() addToCartDto: AddToCartDto) {
+    return this.cartService.addToCart(addToCartDto);
   }
 
   @Get()

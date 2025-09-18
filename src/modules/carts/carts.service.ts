@@ -11,6 +11,7 @@ import { Model, SortOrder, Types } from 'mongoose';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { SyncCartDto } from './dto/sync-cart.dto';
 import { ProductsService } from '../products/products.service';
+import { AddToCartDto } from './dto/add-to-cart.dto';
 
 @Injectable()
 export class CartsService {
@@ -22,6 +23,75 @@ export class CartsService {
   async create(createCartDto: CreateCartDto): Promise<Cart> {
     const createdCart = new this.cartModel(createCartDto);
     return createdCart.save();
+  }
+
+  async addToCart(addToCartDto: AddToCartDto): Promise<Cart> {
+    const { user, product, quantity, variantSku } = addToCartDto;
+
+    const productDoc = await this.productService.findOne(product);
+
+    if (!productDoc) {
+      throw new NotFoundException(`Sản phẩm ${product} không tồn tại`);
+    }
+
+    const variant = productDoc.variants.find((v) => v.sku === variantSku);
+
+    if (!variant) {
+      throw new NotFoundException(`Variant ${variantSku} không tồn tại`);
+    }
+
+    if (variant.stock < quantity) {
+      throw new BadRequestException(
+        `Không đủ hàng cho ${variantSku}. Còn lại ${variant.stock}`,
+      );
+    }
+
+    let cart = await this.cartModel.findOne({ user, isActive: true });
+
+    if (cart) {
+      const existingItem = cart.items.find(
+        (item) =>
+          item.product.toString() === product && item.variantSku === variantSku,
+      );
+
+      if (existingItem) {
+        const newQty = existingItem.quantity + quantity;
+        if (newQty > variant.stock) {
+          throw new BadRequestException(
+            `Số lượng vượt quá kho: ${variantSku}. Còn lại: ${variant.stock}`,
+          );
+        }
+
+        existingItem.quantity = newQty;
+      } else {
+        cart.items.push({
+          product: new Types.ObjectId(product),
+          variantSku,
+          quantity,
+          priceAtAdd: variant.price,
+        });
+      }
+    } else {
+      cart = new this.cartModel({
+        user,
+        items: [
+          {
+            product,
+            variantSku,
+            quantity,
+            priceAtAdd: variant.price,
+          },
+        ],
+        isActive: true,
+      });
+    }
+
+    cart.total = cart.items.reduce(
+      (sum, item) => sum + item.quantity * item.priceAtAdd,
+      0,
+    );
+
+    return cart.save();
   }
 
   async findAll(query: PaginationQueryDto) {
