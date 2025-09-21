@@ -1,17 +1,20 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { RegisterDto } from './dto/register.dto';
+import { CurrentUser } from './decorators/current-user.decorator';
+import { User } from '../users/schema/user.schema';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
-@ApiTags('Auth') 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @ApiOperation({ summary: 'Đăng nhập người dùng' })
-  @ApiBody({ type: LoginDto }) 
+  @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Trả về JWT token' })
   @ApiResponse({ status: 401, description: 'Email hoặc mật khẩu không đúng' })
   async login(@Body() loginDto: LoginDto) {
@@ -25,5 +28,12 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
   async register(@Body() user: RegisterDto) {
     return this.authService.register(user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('/getCurrentUser')
+  @ApiBearerAuth()
+  async getCurrentUser(@CurrentUser() user: User) {
+    return user;
   }
 }

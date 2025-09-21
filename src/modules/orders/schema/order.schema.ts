@@ -83,7 +83,6 @@ export class Order {
       city: { type: String, required: true },
       state: { type: String },
       country: { type: String, required: true },
-      postalCode: { type: String, required: true },
       phone: { type: String },
       recipientName: { type: String, required: true },
     },
@@ -94,7 +93,6 @@ export class Order {
     city: string;
     state?: string;
     country: string;
-    postalCode: string;
     phone?: string;
     recipientName: string;
   };

@@ -33,11 +33,6 @@ export class ShippingAddressDto {
   @IsString()
   country: string;
 
-  @ApiProperty({ description: 'Mã bưu điện', example: '100000' })
-  @IsNotEmpty()
-  @IsString()
-  postalCode: string;
-
   @ApiProperty({
     description: 'Số điện thoại',
     example: '0123456789',
