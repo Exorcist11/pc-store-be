@@ -205,4 +205,39 @@ export class CartsService {
 
     return cart;
   }
+
+  async removeItemsFromCart(
+    userId: string,
+    items: { productId: string; variantSku: string }[],
+  ): Promise<void> {
+    // Tìm giỏ hàng của user
+    const cart = await this.cartModel.findOne({ user: userId, isActive: true });
+    if (!cart) {
+      console.warn(`Không tìm thấy giỏ hàng cho user ${userId}`);
+      return;
+    }
+
+    // Lọc bỏ các item trong giỏ hàng khớp với productId và variantSku
+    cart.items = cart.items.filter(
+      (cartItem) =>
+        !items.some(
+          (orderItem) =>
+            orderItem.productId === cartItem.product.toString() &&
+            orderItem.variantSku === cartItem.variantSku,
+        ),
+    );
+
+    // Cập nhật total
+    cart.total = cart.items.reduce(
+      (sum, item) => sum + item.quantity * item.priceAtAdd,
+      0,
+    );
+
+    // Nếu giỏ hàng rỗng, xóa document; nếu không, lưu lại
+    if (cart.items.length === 0) {
+      await this.cartModel.deleteOne({ user: userId, isActive: true });
+    } else {
+      await cart.save();
+    }
+  }
 }

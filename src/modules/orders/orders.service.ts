@@ -10,6 +10,7 @@ import { Order, OrderDocument } from './schema/order.schema';
 import { Model } from 'mongoose';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
+import { CartsService } from '../carts/carts.service';
 
 @Injectable()
 export class OrdersService {
@@ -18,6 +19,7 @@ export class OrdersService {
     private readonly orderModel: Model<OrderDocument>,
     private productService: ProductsService,
     private userService: UsersService,
+    private cartService: CartsService,
   ) {}
 
   async createOrder(createOrderDto: CreateOrderDto): Promise<OrderDocument> {
@@ -96,19 +98,37 @@ export class OrdersService {
     };
 
     const createdOrder = new this.orderModel(orderData);
-    return await createdOrder.save(); // Pre-save hook sẽ tính total lại và validate
+    const savedOrder = await createdOrder.save();
+
+    try {
+      await this.cartService.removeItemsFromCart(userId, null);
+    } catch (error) {
+      console.error('Lỗi khi xóa giỏ hàng:', error);
+    }
+
+    return savedOrder;
   }
 
   create(createOrderDto: CreateOrderDto) {
     return 'This action adds a new order';
   }
 
-  findAll() {
-    return `This action returns all orders`;
+  async findAll(): Promise<OrderDocument[]> {
+    return this.orderModel
+      .find({ isActive: true })
+      .populate('user items.product')
+      .exec();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} order`;
+  async findOne(id: string): Promise<OrderDocument> {
+    const order = await this.orderModel
+      .findById(id)
+      .populate('user items.product')
+      .exec();
+    if (!order) {
+      throw new NotFoundException('Order không tồn tại');
+    }
+    return order;
   }
 
   update(id: number, updateOrderDto: UpdateOrderDto) {
