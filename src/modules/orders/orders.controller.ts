@@ -6,12 +6,15 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { ApiBody, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Order } from './schema/order.schema';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -32,15 +35,60 @@ export class OrdersController {
   }
 
   @Get()
-  findAll() {
-    return this.ordersService.findAll();
+  @ApiOperation({
+    summary: 'Lấy danh sách tất cả đơn hàng với phân trang và tìm kiếm',
+  })
+  @ApiQuery({
+    name: 'keyword',
+    required: false,
+    description: 'Tìm kiếm theo email user, email guest, hoặc ghi chú',
+    example: 'example@email.com',
+  })
+  @ApiQuery({
+    name: 'index',
+    required: false,
+    example: 1,
+    description: 'Trang hiện tại (bắt đầu từ 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    example: 10,
+    description: 'Số lượng bản ghi mỗi trang',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    example: 'createdAt',
+    description: 'Trường để sắp xếp',
+  })
+  @ApiQuery({
+    name: 'order',
+    required: false,
+    enum: ['asc', 'desc'],
+    example: 'asc',
+    description: 'Thứ tự sắp xếp',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Trả về danh sách đơn hàng với phân trang.',
+  })
+  async findAll(@Query() query: PaginationQueryDto): Promise<any> {
+    return await this.ordersService.findAll(query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(id);
+  @ApiOperation({ summary: 'Lấy đơn hàng theo ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID đơn hàng',
+    example: '60d5ec49f1a2c4b3b8f1a2c4',
+  })
+  @ApiResponse({ status: 200, description: 'Chi tiết đơn hàng', type: Order })
+  @ApiResponse({ status: 404, description: 'Order không tồn tại' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.ordersService.findOne(id);
   }
-
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
     return this.ordersService.update(+id, updateOrderDto);

@@ -7,10 +7,11 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Order, OrderDocument } from './schema/order.schema';
-import { Model } from 'mongoose';
+import { Model, SortOrder } from 'mongoose';
 import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
 import { CartsService } from '../carts/carts.service';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @Injectable()
 export class OrdersService {
@@ -113,11 +114,41 @@ export class OrdersService {
     return 'This action adds a new order';
   }
 
-  async findAll(): Promise<OrderDocument[]> {
-    return this.orderModel
-      .find({ isActive: true })
-      .populate('user items.product')
-      .exec();
+  async findAll(query: PaginationQueryDto): Promise<any> {
+    const { keyword, index = 1, limit = 10, sort, order = 'asc' } = query;
+
+    const filter: any = { isActive: true };
+    if (keyword) {
+      filter.$or = [
+        { 'guestInfo.email': { $regex: keyword, $options: 'i' } },
+        { notes: { $regex: keyword, $options: 'i' } },
+      ];
+    }
+
+    const skip = (index - 1) * limit;
+    const sortOption: Record<string, SortOrder> = {};
+    if (sort) {
+      sortOption[sort] = order === 'desc' ? -1 : 1;
+    }
+
+    const [data, total] = await Promise.all([
+      this.orderModel
+        .find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort(sortOption)
+        .populate('user items.product')
+        .lean(),
+      this.orderModel.countDocuments(filter),
+    ]);
+
+    return {
+      items: data,
+      total,
+      index,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: string): Promise<OrderDocument> {
