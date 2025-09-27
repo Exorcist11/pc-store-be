@@ -102,7 +102,11 @@ export class OrdersService {
     const savedOrder = await createdOrder.save();
 
     try {
-      await this.cartService.removeItemsFromCart(userId, null);
+      const cartItems = items.map((item) => ({
+        productId: item.productId,
+        variantSku: item.variantSku,
+      }));
+      await this.cartService.removeItemsFromCart(userId, cartItems);
     } catch (error) {
       console.error('Lỗi khi xóa giỏ hàng:', error);
     }
