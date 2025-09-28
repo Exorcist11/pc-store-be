@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { Order } from './schema/order.schema';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -103,5 +104,16 @@ export class OrdersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.ordersService.remove(+id);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Cập nhật trạng thái và thanh toán của đơn hàng' })
+  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
+  @ApiResponse({ status: 200, description: 'Cập nhật thành công', type: Order })
+  async updateOrderStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
+    return this.ordersService.updateStatus(id, dto);
   }
 }

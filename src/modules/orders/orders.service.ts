@@ -12,6 +12,7 @@ import { ProductsService } from '../products/products.service';
 import { UsersService } from '../users/users.service';
 import { CartsService } from '../carts/carts.service';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Injectable()
 export class OrdersService {
@@ -172,5 +173,17 @@ export class OrdersService {
 
   remove(id: number) {
     return `This action removes a #${id} order`;
+  }
+
+  async updateStatus(id: string, dto: UpdateOrderStatusDto): Promise<Order> {
+    const order = await this.orderModel.findById(id);
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn hàng');
+    }
+
+    if (dto.status) order.status = dto.status;
+    if (dto.paymentStatus) order.paymentStatus = dto.paymentStatus;
+
+    return order.save();
   }
 }
