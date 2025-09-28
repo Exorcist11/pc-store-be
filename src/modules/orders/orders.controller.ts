@@ -12,7 +12,13 @@ import {
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { Order } from './schema/order.schema';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
@@ -86,7 +92,7 @@ export class OrdersController {
   })
   @ApiResponse({ status: 200, description: 'Chi tiết đơn hàng', type: Order })
   @ApiResponse({ status: 404, description: 'Order không tồn tại' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+  async findOne(@Param('id') id: string) {
     return await this.ordersService.findOne(id);
   }
   @Patch(':id')
