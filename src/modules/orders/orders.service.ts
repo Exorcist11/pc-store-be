@@ -78,7 +78,7 @@ export class OrdersService {
         product: itemDto.productId,
         variantSku: itemDto.variantSku,
         quantity: itemDto.quantity,
-        price: variant.price, // Lấy price từ DB
+        price: 1 - variant.price * product.discount,
       };
       processedItems.push(item);
       total += item.quantity * item.price;
