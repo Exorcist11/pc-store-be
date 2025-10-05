@@ -97,6 +97,27 @@ export class OrdersController {
     return await this.ordersService.findOne(id);
   }
   @Patch(':id')
+  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
+    return this.ordersService.update(+id, updateOrderDto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.ordersService.remove(+id);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Cập nhật trạng thái và thanh toán của đơn hàng' })
+  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
+  @ApiResponse({ status: 200, description: 'Cập nhật thành công', type: Order })
+  async updateOrderStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
+    return this.ordersService.updateStatus(id, dto);
+  }
+
+  @Get('user/:userId')
   @ApiOperation({ summary: 'Lấy danh sách đơn hàng của một user' })
   @ApiParam({
     name: 'userId',
@@ -132,32 +153,10 @@ export class OrdersController {
     description: 'Trả về danh sách đơn hàng của user với phân trang.',
   })
   @ApiResponse({ status: 404, description: 'User không tồn tại' })
-  @Get('user/:userId')
   async findByUser(
     @Param('userId') userId: string,
     @Query() query: PaginationQueryDto,
   ): Promise<any> {
     return await this.ordersService.findByUser(userId, query);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
-    return this.ordersService.update(+id, updateOrderDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.ordersService.remove(+id);
-  }
-
-  @Patch(':id/status')
-  @ApiOperation({ summary: 'Cập nhật trạng thái và thanh toán của đơn hàng' })
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công', type: Order })
-  async updateOrderStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateOrderStatusDto,
-  ) {
-    return this.ordersService.updateStatus(id, dto);
   }
 }
