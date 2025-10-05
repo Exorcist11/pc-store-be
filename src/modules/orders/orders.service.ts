@@ -78,7 +78,7 @@ export class OrdersService {
         product: itemDto.productId,
         variantSku: itemDto.variantSku,
         quantity: itemDto.quantity,
-        price: 1 - variant.price * product.discount,
+        price: variant.price * (1 - product.discount / 100),
       };
       processedItems.push(item);
       total += item.quantity * item.price;
