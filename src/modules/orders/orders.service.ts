@@ -156,6 +156,43 @@ export class OrdersService {
     };
   }
 
+  async findByUser(userId: string, query: PaginationQueryDto): Promise<any> {
+    const { index = 1, limit = 10, sort, order = 'asc' } = query;
+
+    // Kiểm tra xem user có tồn tại không
+    const user = await this.userService.findOne(userId);
+    if (!user) {
+      throw new NotFoundException(`Không tìm thấy người dùng với ID ${userId}`);
+    }
+
+    const filter: any = { user: userId, isActive: true };
+
+    const skip = (index - 1) * limit;
+    const sortOption: Record<string, SortOrder> = {};
+    if (sort) {
+      sortOption[sort] = order === 'desc' ? -1 : 1;
+    }
+
+    const [data, total] = await Promise.all([
+      this.orderModel
+        .find(filter)
+        .skip(skip)
+        .limit(limit)
+        .sort(sortOption)
+        .populate('items.product')
+        .lean(),
+      this.orderModel.countDocuments(filter),
+    ]);
+
+    return {
+      items: data,
+      total,
+      index,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async findOne(id: string): Promise<OrderDocument> {
     const order = await this.orderModel
       .findById(id)

@@ -97,6 +97,50 @@ export class OrdersController {
     return await this.ordersService.findOne(id);
   }
   @Patch(':id')
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng của một user' })
+  @ApiParam({
+    name: 'userId',
+    description: 'ID của user',
+  })
+  @ApiQuery({
+    name: 'index',
+    required: false,
+    example: 1,
+    description: 'Trang hiện tại (bắt đầu từ 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    example: 10,
+    description: 'Số lượng bản ghi mỗi trang',
+  })
+  @ApiQuery({
+    name: 'sort',
+    required: false,
+    example: 'createdAt',
+    description: 'Trường để sắp xếp',
+  })
+  @ApiQuery({
+    name: 'order',
+    required: false,
+    enum: ['asc', 'desc'],
+    example: 'asc',
+    description: 'Thứ tự sắp xếp',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Trả về danh sách đơn hàng của user với phân trang.',
+  })
+  @ApiResponse({ status: 404, description: 'User không tồn tại' })
+  @Get('user/:userId')
+  async findByUser(
+    @Param('userId') userId: string,
+    @Query() query: PaginationQueryDto,
+  ): Promise<any> {
+    return await this.ordersService.findByUser(userId, query);
+  }
+
+  @Patch(':id')
   update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
     return this.ordersService.update(+id, updateOrderDto);
   }
