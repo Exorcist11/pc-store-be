@@ -15,6 +15,7 @@ import { CartsModule } from './modules/carts/carts.module';
 import { CouponModule } from './modules/coupon/coupon.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { PublicModule } from './modules/public/public.module';
+import { GeminiModule } from './modules/gemini/gemini.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PublicModule } from './modules/public/public.module';
     CouponModule,
     SettingsModule,
     PublicModule,
+    GeminiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
