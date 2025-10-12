@@ -82,7 +82,6 @@ Chỉ trả về JSON, không giải thích thêm.`;
       throw new Error('Không thể phân tích response từ Gemini');
     } catch (error) {
       console.error('Error analyzing user query:', error);
-      // Fallback: trả về filter rỗng
       return {
         productTypes: [],
         categories: [],
@@ -94,33 +93,24 @@ Chỉ trả về JSON, không giải thích thêm.`;
     }
   }
 
-  /**
-   * Bước 2: Xây dựng query MongoDB dựa trên kết quả phân tích (không dùng text index)
-   */
   private buildMongoQuery(filter: ProductFilter): any[] {
     const pipeline: any[] = [];
-
-    // Match điều kiện cơ bản
     const matchConditions: any = { isActive: true };
 
-    // Lọc productType
     if (filter.productTypes.length > 0) {
       matchConditions.productType = { $in: filter.productTypes };
     }
 
-    // Lọc category (sử dụng regex)
     if (filter.categories.length > 0) {
       const categoryRegex = filter.categories.join('|');
       matchConditions.category = { $regex: categoryRegex, $options: 'i' };
     }
 
-    // Lọc brand (sử dụng regex)
     if (filter.brands.length > 0) {
       const brandRegex = filter.brands.join('|');
       matchConditions.brand = { $regex: brandRegex, $options: 'i' };
     }
 
-    // Tìm kiếm theo keywords (dùng regex cho name và description)
     if (filter.keywords.length > 0) {
       const keywordRegex = filter.keywords.join('|');
       matchConditions.$or = [
@@ -130,16 +120,12 @@ Chỉ trả về JSON, không giải thích thêm.`;
     }
 
     pipeline.push({ $match: matchConditions });
-
-    // Unwind variants
     pipeline.push({ $unwind: '$variants' });
 
-    // Match điều kiện variant
     const variantMatch: any = {
       'variants.stock': { $gt: 0 },
     };
 
-    // Lọc price range
     if (filter.priceRange.min !== null) {
       variantMatch['variants.price'] = { $gte: filter.priceRange.min };
     }
@@ -150,10 +136,8 @@ Chỉ trả về JSON, không giải thích thêm.`;
       };
     }
 
-    // Lọc attributes
     for (const [key, values] of Object.entries(filter.attributes)) {
       if (values.length > 0) {
-        // Sử dụng regex để match linh hoạt hơn (VD: "16GB" match với "16 GB")
         const attrRegex = values
           .map((v) => v.replace(/\s+/g, '\\s*'))
           .join('|');
@@ -166,7 +150,6 @@ Chỉ trả về JSON, không giải thích thêm.`;
 
     pipeline.push({ $match: variantMatch });
 
-    // Group lại theo product
     pipeline.push({
       $group: {
         _id: '$_id',
@@ -186,7 +169,6 @@ Chỉ trả về JSON, không giải thích thêm.`;
       },
     });
 
-    // Thêm minPrice và sort
     pipeline.push({ $addFields: { minPrice: { $min: '$variants.price' } } });
     pipeline.push({ $sort: { minPrice: 1 } });
     pipeline.push({ $limit: 15 });
@@ -194,9 +176,6 @@ Chỉ trả về JSON, không giải thích thêm.`;
     return pipeline;
   }
 
-  /**
-   * Bước 3: Populate brand và category
-   */
   private async populateProducts(products: any[]): Promise<any[]> {
     return await this.productModel.populate(products, [
       { path: 'brand', select: 'name slug' },
@@ -205,8 +184,96 @@ Chỉ trả về JSON, không giải thích thêm.`;
   }
 
   /**
-   * Bước 4: Sử dụng Gemini để gợi ý sản phẩm tốt nhất
+   * Gợi ý sản phẩm từ thị trường (để so sánh hoặc tham khảo)
    */
+  private async getMarketSuggestions(
+    userQuery: string,
+    filter: ProductFilter,
+    hasStoreProducts: boolean = false,
+  ): Promise<any> {
+    const contextMessage = hasStoreProducts
+      ? 'Để khách hàng có thêm lựa chọn và so sánh, hãy gợi ý thêm 3-4 sản phẩm KHÁC đang bán trên thị trường Việt Nam (tránh trùng với sản phẩm trong cửa hàng).'
+      : 'Hiện tại cửa hàng chưa có sản phẩm phù hợp trong kho. Hãy gợi ý 3-5 sản phẩm ĐANG BÁN trên thị trường Việt Nam (tháng 10/2025) phù hợp với yêu cầu này.';
+
+    const marketPrompt = `Bạn là chuyên gia tư vấn sản phẩm công nghệ tại thị trường Việt Nam.
+
+Yêu cầu của khách hàng: "${userQuery}"
+
+Phân tích yêu cầu: ${JSON.stringify(filter, null, 2)}
+
+${contextMessage}
+
+Yêu cầu:
+1. Chọn sản phẩm phổ biến, dễ tìm mua tại Việt Nam
+2. Giá cả phù hợp với ngân sách (nếu có)
+3. Cung cấp thông số kỹ thuật chi tiết
+4. Giải thích rõ tại sao phù hợp
+5. Đưa ra mức giá tham khảo thị trường (VNĐ)
+
+Định dạng output (JSON):
+{
+  "message": "${hasStoreProducts ? 'Một số sản phẩm khác trên thị trường để bạn tham khảo thêm:' : 'Thông báo: Hiện tại cửa hàng chưa có sản phẩm này. Dưới đây là gợi ý từ thị trường:'}",
+  "marketSuggestions": [
+    {
+      "productName": "Tên sản phẩm đầy đủ",
+      "brand": "Thương hiệu",
+      "model": "Model cụ thể",
+      "estimatedPrice": {
+        "min": giá thấp nhất (số),
+        "max": giá cao nhất (số),
+        "currency": "VNĐ"
+      },
+      "specifications": {
+        "CPU": "Chi tiết CPU",
+        "RAM": "Chi tiết RAM",
+        "Storage": "Chi tiết ổ cứng",
+        "VGA": "Chi tiết card đồ họa (nếu có)",
+        "Screen": "Kích thước màn hình",
+        "OS": "Hệ điều hành",
+        "Weight": "Trọng lượng",
+        "Battery": "Pin (nếu là laptop)",
+        "otherFeatures": ["Tính năng khác 1", "Tính năng khác 2"]
+      },
+      "reason": "Giải thích chi tiết (3-5 câu) tại sao phù hợp với yêu cầu",
+      "pros": ["Ưu điểm 1", "Ưu điểm 2", "Ưu điểm 3"],
+      "cons": ["Nhược điểm 1", "Nhược điểm 2"],
+      "bestFor": "Phù hợp nhất cho đối tượng/công việc gì",
+      "availableAt": ["Nơi bán phổ biến 1", "Nơi bán phổ biến 2"],
+      "valueScore": điểm giá trị (1-10)
+    }
+  ],
+  "buyingGuide": "Lời khuyên khi mua sản phẩm này (cần chú ý gì, mua ở đâu uy tín, ...)",
+  "alternativeSearch": "Gợi ý từ khóa tìm kiếm để khách tự tìm thêm"
+}
+
+Chỉ trả về JSON, không giải thích thêm.`;
+
+    try {
+      const response = await this.genAI.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: marketPrompt,
+      });
+
+      const responseText = response.text;
+      const jsonMatch =
+        responseText.match(/```json\n([\s\S]*?)\n```/) ||
+        responseText.match(/\{[\s\S]*\}/);
+
+      if (jsonMatch) {
+        const jsonStr = jsonMatch[1] || jsonMatch[0];
+        return JSON.parse(jsonStr);
+      }
+
+      return { error: 'Không thể phân tích response', raw: responseText };
+    } catch (error) {
+      console.error('Error getting market suggestions:', error);
+      return {
+        error: 'Lỗi khi lấy gợi ý từ thị trường',
+        details: error.message,
+      };
+    }
+  }
+
   private async getRecommendations(
     userQuery: string,
     products: any[],
@@ -315,7 +382,7 @@ Chỉ trả về JSON, không giải thích thêm.`;
       console.log('✅ Kết quả phân tích:', JSON.stringify(filter, null, 2));
 
       // Bước 2: Query MongoDB
-      console.log('🔎 Tìm kiếm sản phẩm...');
+      console.log('🔎 Tìm kiếm sản phẩm trong hệ thống...');
       const pipeline = this.buildMongoQuery(filter);
       let products = await this.productModel.aggregate(pipeline).exec();
 
@@ -323,14 +390,13 @@ Chỉ trả về JSON, không giải thích thêm.`;
       if (products.length > 0) {
         products = await this.populateProducts(products);
       }
-      console.log(`✅ Tìm thấy ${products.length} sản phẩm`);
+      console.log(`✅ Tìm thấy ${products.length} sản phẩm trong hệ thống`);
 
-      // Bước 4: Nếu không có sản phẩm, nới lỏng điều kiện
+      // Bước 4: Nếu không có sản phẩm, thử nới lỏng điều kiện
       if (products.length === 0) {
         console.log('⚠️ Không tìm thấy sản phẩm, nới lỏng điều kiện...');
         const relaxedFilter = { ...filter };
 
-        // Chỉ giữ productType và priceRange
         relaxedFilter.categories = [];
         relaxedFilter.brands = [];
         relaxedFilter.attributes = {};
@@ -346,19 +412,40 @@ Chỉ trả về JSON, không giải thích thêm.`;
         console.log(`✅ Tìm thấy ${products.length} sản phẩm sau khi nới lỏng`);
       }
 
-      // Bước 5: Sử dụng Gemini để gợi ý
-      console.log('🤖 Gemini đang phân tích và gợi ý...');
-      const recommendations = await this.getRecommendations(
+      // Bước 5: Luôn lấy gợi ý từ thị trường (để khách hàng có thêm lựa chọn)
+      console.log('🌐 Lấy thêm gợi ý từ thị trường...');
+      const marketSuggestions = await this.getMarketSuggestions(
         userQuery,
-        products,
         filter,
+        products.length > 0, // true nếu có sản phẩm trong store
       );
 
+      // Bước 6: Nếu có sản phẩm trong store, dùng Gemini gợi ý
+      if (products.length > 0) {
+        console.log('🤖 Gemini đang phân tích sản phẩm có sẵn...');
+        const recommendations = await this.getRecommendations(
+          userQuery,
+          products,
+          filter,
+        );
+
+        return {
+          userQuery,
+          analyzedFilter: filter,
+          totalProductsFound: products.length,
+          source: 'store',
+          recommendations,
+          marketSuggestions, // Thêm gợi ý từ thị trường
+        };
+      }
+
+      // Bước 7: Nếu không có sản phẩm, chỉ trả về market suggestions
       return {
         userQuery,
         analyzedFilter: filter,
-        totalProductsFound: products.length,
-        recommendations,
+        totalProductsFound: 0,
+        source: 'market',
+        marketSuggestions,
       };
     } catch (error) {
       console.error('❌ Error in recommendProducts:', error);
