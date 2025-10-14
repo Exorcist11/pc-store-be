@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, SortOrder } from 'mongoose';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -158,5 +162,69 @@ export class ProductsService {
     if (!deleted)
       throw new NotFoundException(`Product with ID "${id}" not found`);
     return deleted;
+  }
+
+  async updateVariantStock(
+    productId: string,
+    variantSku: string,
+    stockChange: number,
+  ): Promise<ProductDocument> {
+    const product = await this.productModel.findById(productId);
+
+    if (!product) {
+      throw new NotFoundException(
+        `Không tìm thấy sản phẩm với ID ${productId}`,
+      );
+    }
+
+    const variantIndex = product.variants.findIndex(
+      (v) => v.sku === variantSku,
+    );
+
+    if (variantIndex === -1) {
+      throw new NotFoundException(
+        `Không tìm thấy variant với SKU ${variantSku}`,
+      );
+    }
+
+    const newStock = product.variants[variantIndex].stock + stockChange;
+
+    // Kiểm tra không để stock âm
+    if (newStock < 0) {
+      throw new BadRequestException(
+        `Không đủ tồn kho. Hiện tại: ${product.variants[variantIndex].stock}, yêu cầu: ${Math.abs(stockChange)}`,
+      );
+    }
+
+    // Cập nhật stock
+    product.variants[variantIndex].stock = newStock;
+
+    return product.save();
+  }
+
+  /**
+   * Lấy thông tin tồn kho của variant
+   */
+  async getVariantStock(
+    productId: string,
+    variantSku: string,
+  ): Promise<number> {
+    const product = await this.productModel.findById(productId);
+
+    if (!product) {
+      throw new NotFoundException(
+        `Không tìm thấy sản phẩm với ID ${productId}`,
+      );
+    }
+
+    const variant = product.variants.find((v) => v.sku === variantSku);
+
+    if (!variant) {
+      throw new NotFoundException(
+        `Không tìm thấy variant với SKU ${variantSku}`,
+      );
+    }
+
+    return variant.stock;
   }
 }

@@ -51,12 +51,12 @@ export class OrdersService {
       if (!guestInfo) {
         throw new BadRequestException('Thông tin guest là bắt buộc');
       }
-      // Có thể validate email trùng lặp nếu cần
     }
 
-    // Validate và tính price cho items
+    // Validate và tính price cho items, kiểm tra tồn kho
     const processedItems = [];
     let total = 0;
+
     for (const itemDto of items) {
       const product = await this.productService.findOne(itemDto.productId);
       if (!product) {
@@ -64,13 +64,20 @@ export class OrdersService {
           `Sản phẩm ${itemDto.productId} không tồn tại`,
         );
       }
-      // Giả sử lấy variant dựa trên SKU
+
       const variant = product.variants?.find(
         (v) => v.sku === itemDto.variantSku,
       );
       if (!variant) {
         throw new BadRequestException(
           `Variant SKU ${itemDto.variantSku} không hợp lệ`,
+        );
+      }
+
+      // Kiểm tra tồn kho
+      if (variant.stock < itemDto.quantity) {
+        throw new BadRequestException(
+          `Sản phẩm ${product.name} (${itemDto.variantSku}) chỉ còn ${variant.stock} sản phẩm trong kho`,
         );
       }
 
@@ -102,6 +109,16 @@ export class OrdersService {
     const createdOrder = new this.orderModel(orderData);
     const savedOrder = await createdOrder.save();
 
+    // Giảm số lượng tồn kho
+    try {
+      await this.decreaseStock(processedItems);
+    } catch (error) {
+      // Rollback: xóa order vừa tạo nếu giảm stock thất bại
+      await this.orderModel.findByIdAndDelete(savedOrder._id);
+      throw new BadRequestException(`Không thể giảm tồn kho: ${error.message}`);
+    }
+
+    // Xóa items khỏi giỏ hàng
     try {
       const cartItems = items.map((item) => ({
         productId: item.productId,
@@ -113,6 +130,32 @@ export class OrdersService {
     }
 
     return savedOrder;
+  }
+
+  /**
+   * Giảm số lượng tồn kho khi đặt hàng
+   */
+  private async decreaseStock(items: any[]): Promise<void> {
+    for (const item of items) {
+      await this.productService.updateVariantStock(
+        item.product,
+        item.variantSku,
+        -item.quantity,
+      );
+    }
+  }
+
+  /**
+   * Tăng số lượng tồn kho khi hủy đơn hàng
+   */
+  private async increaseStock(items: any[]): Promise<void> {
+    for (const item of items) {
+      await this.productService.updateVariantStock(
+        item.product,
+        item.variantSku,
+        item.quantity,
+      );
+    }
   }
 
   create(createOrderDto: CreateOrderDto) {
@@ -159,7 +202,6 @@ export class OrdersService {
   async findByUser(userId: string, query: PaginationQueryDto): Promise<any> {
     const { index = 1, limit = 10, sort, order = 'asc' } = query;
 
-    // Kiểm tra xem user có tồn tại không
     const user = await this.userService.findOne(userId);
     if (!user) {
       throw new NotFoundException(`Không tìm thấy người dùng với ID ${userId}`);
@@ -213,13 +255,48 @@ export class OrdersService {
   }
 
   async updateStatus(id: string, dto: UpdateOrderStatusDto): Promise<Order> {
-    const order = await this.orderModel.findById(id);
+    const order = await this.orderModel.findById(id).populate('items.product');
+
     if (!order) {
       throw new NotFoundException('Không tìm thấy đơn hàng');
     }
 
-    if (dto.status) order.status = dto.status;
-    if (dto.paymentStatus) order.paymentStatus = dto.paymentStatus;
+    const oldStatus = order.status;
+    const newStatus = dto.status;
+
+    // Xử lý tồn kho khi thay đổi trạng thái
+    if (newStatus && oldStatus !== newStatus) {
+      // Hủy đơn hàng: hoàn trả tồn kho
+      if (newStatus === 'cancelled' && oldStatus !== 'cancelled') {
+        try {
+          await this.increaseStock(order.items);
+          console.log(`Đã hoàn trả tồn kho cho đơn hàng ${id}`);
+        } catch (error) {
+          throw new BadRequestException(
+            `Không thể hoàn trả tồn kho: ${error.message}`,
+          );
+        }
+      }
+
+      // Khôi phục đơn hàng từ trạng thái cancelled: giảm tồn kho lại
+      if (oldStatus === 'cancelled' && newStatus !== 'cancelled') {
+        try {
+          await this.decreaseStock(order.items);
+          console.log(`Đã giảm tồn kho cho đơn hàng ${id}`);
+        } catch (error) {
+          throw new BadRequestException(
+            `Không thể giảm tồn kho: ${error.message}`,
+          );
+        }
+      }
+
+      order.status = newStatus;
+    }
+
+    // Cập nhật trạng thái thanh toán
+    if (dto.paymentStatus) {
+      order.paymentStatus = dto.paymentStatus;
+    }
 
     return order.save();
   }
