@@ -10,7 +10,7 @@ export class ReportService {
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
   ) {}
-  
+
   private getDateFilter(startDate?: string, endDate?: string) {
     const filter: any = {};
     if (startDate || endDate) {
@@ -104,8 +104,9 @@ export class ReportService {
     startDate?: string,
     endDate?: string,
   ) {
-    const filter = this.getDateFilter(startDate, endDate);
+    const filter = this.getDateFilterPeriod(startDate, endDate);
 
+    // Định nghĩa cách group theo period
     const groupByFormat: any = {
       day: {
         year: { $year: '$createdAt' },
@@ -114,7 +115,7 @@ export class ReportService {
       },
       week: {
         year: { $year: '$createdAt' },
-        week: { $week: '$createdAt' },
+        week: { $week: '$createdAt' }, // MongoDB tự tính tuần
       },
       month: {
         year: { $year: '$createdAt' },
@@ -122,7 +123,8 @@ export class ReportService {
       },
     };
 
-    const data = await this.orderModel.aggregate([
+    // Aggregate doanh thu
+    const rawData = await this.orderModel.aggregate([
       { $match: { ...filter, paymentStatus: 'paid' } },
       {
         $group: {
@@ -132,15 +134,138 @@ export class ReportService {
           averageOrderValue: { $avg: '$total' },
         },
       },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      ...(period === 'day'
+        ? [
+            {
+              $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } as Record<
+                string,
+                1 | -1
+              >,
+            },
+          ]
+        : period === 'week'
+          ? [
+              {
+                $sort: { '_id.year': 1, '_id.week': 1 } as Record<
+                  string,
+                  1 | -1
+                >,
+              },
+            ]
+          : [
+              {
+                $sort: { '_id.year': 1, '_id.month': 1 } as Record<
+                  string,
+                  1 | -1
+                >,
+              },
+            ]),
     ]);
 
-    return data.map((item) => ({
-      period: item._id,
-      revenue: item.revenue,
-      orders: item.orders,
-      averageOrderValue: item.averageOrderValue,
-    }));
+    // Chuyển rawData sang map để dễ fill ngày/tuần/tháng không có đơn hàng
+    const dataMap = new Map<string, any>();
+    for (const item of rawData) {
+      const key = this.getPeriodKey(item._id, period);
+      dataMap.set(key, {
+        period: item._id,
+        revenue: item.revenue,
+        orders: item.orders,
+        averageOrderValue: item.averageOrderValue,
+      });
+    }
+
+    // Tạo danh sách tất cả period trong khoảng
+    const allPeriods = this.generateAllPeriods(period, startDate, endDate);
+
+    // Fill dữ liệu, nếu không có thì revenue = 0
+    const result = allPeriods.map(
+      (p) =>
+        dataMap.get(p) || {
+          ...this.parsePeriodKey(p, period),
+          revenue: 0,
+          orders: 0,
+          averageOrderValue: 0,
+        },
+    );
+
+    return result;
+  }
+
+  // Lọc theo khoảng ngày
+  private getDateFilterPeriod(startDate?: string, endDate?: string) {
+    const filter: any = {};
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) filter.createdAt.$lte = new Date(endDate);
+    }
+    return filter;
+  }
+
+  // Tạo key dạng string cho map
+  private getPeriodKey(periodObj: any, period: 'day' | 'week' | 'month') {
+    if (period === 'day')
+      return `${periodObj.year}-${periodObj.month}-${periodObj.day}`;
+    if (period === 'week') return `${periodObj.year}-W${periodObj.week}`;
+    return `${periodObj.year}-${periodObj.month}`;
+  }
+
+  // Chuyển string key thành object period
+  private parsePeriodKey(key: string, period: 'day' | 'week' | 'month') {
+    if (period === 'day') {
+      const [year, month, day] = key.split('-').map(Number);
+      return { year, month, day };
+    }
+    if (period === 'week') {
+      const [year, weekStr] = key.split('-W');
+      return { year: Number(year), week: Number(weekStr) };
+    }
+    const [year, month] = key.split('-').map(Number);
+    return { year, month };
+  }
+
+  // Sinh tất cả period trong khoảng
+  private generateAllPeriods(
+    period: 'day' | 'week' | 'month',
+    start?: string,
+    end?: string,
+  ) {
+    const result: string[] = [];
+    const startDate = start ? new Date(start) : new Date();
+    const endDate = end ? new Date(end) : new Date();
+
+    const current = new Date(startDate);
+    while (current <= endDate) {
+      let key = '';
+      if (period === 'day') {
+        key = `${current.getFullYear()}-${current.getMonth() + 1}-${current.getDate()}`;
+        result.push(key);
+        current.setDate(current.getDate() + 1);
+      } else if (period === 'week') {
+        const week = this.getWeekNumber(current);
+        key = `${current.getFullYear()}-W${week}`;
+        if (!result.includes(key)) result.push(key);
+        current.setDate(current.getDate() + 1);
+      } else {
+        key = `${current.getFullYear()}-${current.getMonth() + 1}`;
+        if (!result.includes(key)) result.push(key);
+        current.setMonth(current.getMonth() + 1);
+      }
+    }
+
+    return result;
+  }
+
+  // Lấy số tuần trong năm (ISO week)
+  private getWeekNumber(d: Date) {
+    const date = new Date(d.getTime());
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 4 - (date.getDay() || 7));
+    const yearStart = new Date(date.getFullYear(), 0, 1);
+    const weekNo = Math.ceil(
+      ((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+    );
+    return weekNo;
   }
 
   // Top sản phẩm bán chạy
