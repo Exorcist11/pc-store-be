@@ -16,6 +16,7 @@ import { CouponModule } from './modules/coupon/coupon.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { PublicModule } from './modules/public/public.module';
 import { GeminiModule } from './modules/gemini/gemini.module';
+import { ReportModule } from './modules/report/report.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { GeminiModule } from './modules/gemini/gemini.module';
     SettingsModule,
     PublicModule,
     GeminiModule,
+    ReportModule,
   ],
   controllers: [AppController],
   providers: [AppService],
